@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CropGuard AI - Plant Disease & Nutrition Advisor</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        agri: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            950: '#052e16',
+                        },
+                        darkbg: '#0b130e',
+                        cardbg: '#121f17',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b130e;
+            color: #ecfdf5;
+        }
+
+        /* Glassmorphism & Visual Polish */
+        .glass-card {
+            background: rgba(18, 31, 23, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(34, 197, 94, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Scanner Animation Effects */
+        .scanner-container {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #22c55e, #4ade80, #22c55e, transparent);
+            box-shadow: 0 0 15px #4ade80, 0 0 25px #22c55e;
+            display: none;
+            z-index: 20;
+        }
+
+        .scanning .scanner-line {
+            display: block;
+            animation: scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .scanning .scan-overlay {
+            display: flex !important;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; }
+            50% { top: 96%; }
+            100% { top: 0%; }
+        }
+
+        /* Grid Background pattern */
+        .bg-grid-pattern {
+            background-size: 30px 30px;
+            background-image: 
+                linear-gradient(to right, rgba(34, 197, 94, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(34, 197, 94, 0.05) 1px, transparent 1px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b130e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e3828;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #22c55e;
+        }
+
+        /* Circular Gauge Styles */
+        .circle-bg {
+            fill: none;
+            stroke: #1e3828;
+            stroke-width: 3.8;
+        }
+        .circle-progress {
+            fill: none;
+            stroke-width: 3.8;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease, stroke 0.5s ease;
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-emerald-50 min-h-screen bg-grid-pattern flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-agri-900/60 bg-darkbg/90 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-agri-700 to-agri-400 flex items-center justify-center text-darkbg font-extrabold text-xl shadow-lg shadow-agri-500/20">
+                    <i class="fa-solid font-bold fa-wheat-awn text-emerald-950"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-xl font-bold tracking-tight text-white">CropGuard <span class="text-agri-400">AI</span></h1>
+                        <span id="badgeVision" class="bg-agri-900/80 text-agri-300 border border-agri-600/40 text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full">
+                            <i class="fa-solid fa-camera-retro mr-1"></i> Live Vision & Agronomy
+                        </span>
+                    </div>
+                    <p id="subTitle" class="text-xs text-emerald-400/70">Disease Diagnosis & Stage-Based Plant Nutrition Engine</p>
+                </div>
+            </div>
+
+            <!-- Language Selector & System Status -->
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <div class="flex items-center space-x-1.5 bg-agri-950/80 border border-agri-800 px-2.5 py-1.5 rounded-xl shadow-sm">
+                    <i class="fa-solid fa-language text-agri-400 text-sm"></i>
+                    <select id="languageSelect" onchange="changeLanguage(this.value)" class="bg-transparent text-xs font-semibold text-white focus:outline-none cursor-pointer">
+                        <option value="en" class="bg-agri-950 text-white">English</option>
+                        <option value="ta" class="bg-agri-950 text-white">தமிழ் (Tamil)</option>
+                        <option value="te" class="bg-agri-950 text-white">తెలుగు (Telugu)</option>
+                        <option value="hi" class="bg-agri-950 text-white">हिंदी (Hindi)</option>
+                        <option value="mr" class="bg-agri-950 text-white">मराठी (Marathi)</option>
+                        <option value="ml" class="bg-agri-950 text-white">മലയാളം (Malayalam)</option>
+                        <option value="kn" class="bg-agri-950 text-white">ಕನ್ನಡ (Kannada)</option>
+                        <option value="or" class="bg-agri-950 text-white">ଓଡ଼ିଆ (Odia)</option>
+                    </select>
+                </div>
+
+                <div class="hidden md:flex items-center space-x-6 text-xs text-emerald-300/80 border-l border-agri-800/80 pl-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-agri-400 animate-pulse"></span>
+                        <span id="navCameraStatus">Camera Engine Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- LEFT PANEL: Image Input / Live Camera (5 cols) -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Input Mode Box -->
+                <div class="glass-card rounded-2xl p-5 border border-agri-800/50">
+                    
+                    <!-- Mode Selector Buttons -->
+                    <div class="flex items-center justify-between mb-3 bg-agri-950/80 p-1 rounded-xl border border-agri-900">
+                        <button id="modeUploadBtn" onclick="switchInputMode('upload')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-agri-800 text-white shadow">
+                            <i class="fa-solid fa-upload"></i> <span id="btnFileUpload">File Upload</span>
+                        </button>
+                        <button id="modeCameraBtn" onclick="switchInputMode('camera')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-emerald-400/70 hover:text-white">
+                            <i class="fa-solid fa-video"></i> <span id="btnLiveCamera">Live Camera</span>
+                        </button>
+                    </div>
+
+                    <!-- DROPZONE / PREVIEW AREA -->
+                    <div id="dropzone" class="scanner-container relative border-2 border-dashed border-agri-800/80 hover:border-agri-500/80 transition-colors rounded-xl p-3 text-center bg-agri-950/40 min-h-[250px] flex flex-col justify-center items-center">
+                        
+                        <!-- Scanner Overlay -->
+                        <div class="scanner-line"></div>
+                        <div class="scan-overlay absolute inset-0 bg-agri-950/80 backdrop-blur-xs hidden flex-col items-center justify-center z-20 transition-all">
+                            <div class="w-12 h-12 rounded-full border-2 border-agri-400 border-t-transparent animate-spin mb-2"></div>
+                            <span id="scanOverlayText" class="text-xs font-semibold tracking-wider text-agri-300 uppercase animate-pulse">Analyzing Leaf Pathogens & Stomata...</span>
+                        </div>
+
+                        <!-- 1. LIVE CAMERA STREAM CONTAINER -->
+                        <div id="cameraStreamContainer" class="hidden w-full relative rounded-lg overflow-hidden border border-agri-700/50 bg-black flex flex-col items-center">
+                            <video id="videoFeed" autoplay playsinline class="w-full h-52 object-cover rounded-lg"></video>
+                            
+                            <!-- Camera Controls overlay -->
+                            <div class="absolute bottom-2 inset-x-2 flex items-center justify-between gap-2 z-10">
+                                <button type="button" onclick="toggleCameraFacing()" class="bg-black/70 hover:bg-agri-900 text-emerald-300 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 border border-agri-700/60 backdrop-blur-md">
+                                    <i class="fa-solid fa-rotate"></i> <span id="btnFlip">Flip</span>
+                                </button>
+                                <button type="button" onclick="captureSnapshot()" class="bg-gradient-to-r from-agri-500 to-agri-400 text-darkbg font-extrabold px-4 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-lg">
+                                    <i class="fa-solid fa-circle-dot text-red-600 animate-ping"></i> <span id="btnCapture">Capture Snapshot</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. IMAGE PREVIEW CONTAINER -->
+                        <div id="previewContainer" class="hidden w-full h-52 relative rounded-lg overflow-hidden border border-agri-700/50">
+                            <img id="imagePreview" src="" alt="Crop Preview" class="w-full h-full object-cover">
+                            <button id="removeImgBtn" type="button" class="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white w-7 h-7 rounded-full text-xs flex items-center justify-center backdrop-blur-md transition-colors" title="Remove image">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                            <span id="sampleBadge" class="absolute bottom-2 left-2 bg-agri-900/90 text-agri-300 text-[10px] px-2 py-0.5 rounded border border-agri-600/40 font-medium">
+                                Active Snapshot
+                            </span>
+                        </div>
+
+                        <!-- 3. FILE UPLOAD PROMPT -->
+                        <div id="uploadPrompt" class="space-y-2 py-4 cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                            <div class="w-12 h-12 rounded-full bg-agri-900/80 text-agri-400 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                            </div>
+                            <p class="text-sm font-medium text-emerald-200"><span id="promptDrag">Drag & drop photo here or</span> <span id="promptBrowse" class="text-agri-400 underline">browse</span></p>
+                            <p id="promptSupport" class="text-xs text-emerald-500/60">Supports high resolution leaf or field spot photos</p>
+                        </div>
+
+                        <input type="file" id="fileInput" class="hidden" accept="image/*">
+                        <canvas id="snapshotCanvas" class="hidden"></canvas>
+                    </div>
+
+                    <!-- Camera Status Msg -->
+                    <div id="cameraStatusMsg" class="hidden mt-2 p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/60 text-xs text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span id="cameraStatusText">Camera access pending...</span>
+                    </div>
+
+                    <!-- Preset Samples -->
+                    <div class="mt-4 pt-3 border-t border-agri-900/60">
+                        <label id="lblPresets" class="text-xs text-emerald-400/80 font-medium block mb-2">Or test with preset crop samples:</label>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <button type="button" onclick="loadSample('tomato')" class="sample-btn bg-agri-950/60 hover:bg-agri-900/80 border border-agri-800/80 hover:border-agri-600 text-emerald-300 p-2 rounded-lg text-left transition-all flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <div>
+                                    <div id="sampleTomatoTitle" class="font-semibold text-white">Tomato Leaf</div>
+                                    <div id="sampleTomatoSub" class="text-[10px] text-emerald-400/60">Early Blight</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="loadSample('potato')" class="sample-btn bg-agri-950/60 hover:bg-agri-900/80 border border-agri-800/80 hover:border-agri-600 text-emerald-300 p-2 rounded-lg text-left transition-all flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                <div>
+                                    <div id="samplePotatoTitle" class="font-semibold text-white">Potato Foliage</div>
+                                    <div id="samplePotatoSub" class="text-[10px] text-emerald-400/60">Late Blight</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="loadSample('wheat')" class="sample-btn bg-agri-950/60 hover:bg-agri-900/80 border border-agri-800/80 hover:border-agri-600 text-emerald-300 p-2 rounded-lg text-left transition-all flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                <div>
+                                    <div id="sampleWheatTitle" class="font-semibold text-white">Wheat Field</div>
+                                    <div id="sampleWheatSub" class="text-[10px] text-emerald-400/60">Yellow Rust</div>
+                                </div>
+                            </button>
+                            <button type="button" onclick="loadSample('rice')" class="sample-btn bg-agri-950/60 hover:bg-agri-900/80 border border-agri-800/80 hover:border-agri-600 text-emerald-300 p-2 rounded-lg text-left transition-all flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <div>
+                                    <div id="sampleRiceTitle" class="font-semibold text-white">Rice Canopy</div>
+                                    <div id="sampleRiceSub" class="text-[10px] text-emerald-400/60">Healthy</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Environmental Controls -->
+                <div class="glass-card rounded-2xl p-5 border border-agri-800/50 space-y-4">
+                    <h2 id="lblFieldHeader" class="text-sm font-semibold uppercase tracking-wider text-agri-300 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-agri-400"></i> Field Conditions & Growth Phase
+                    </h2>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <label id="lblCropCommodity" class="block text-emerald-300/80 font-medium mb-1.5">Crop Commodity</label>
+                            <select id="cropSelect" class="w-full bg-agri-950/80 border border-agri-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-agri-500 text-xs">
+                                <option value="tomato">Tomato (Solanum lycopersicum)</option>
+                                <option value="potato">Potato (Solanum tuberosum)</option>
+                                <option value="rice">Rice (Oryza sativa)</option>
+                                <option value="wheat">Wheat (Triticum aestivum)</option>
+                                <option value="corn">Corn (Zea mays)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label id="lblGrowthStage" class="block text-emerald-300/80 font-medium mb-1.5">Growth Stage</label>
+                            <select id="stageSelect" class="w-full bg-agri-950/80 border border-agri-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-agri-500 text-xs">
+                                <option value="seedling" id="optSeedling">Seedling & Establishment</option>
+                                <option value="vegetative" id="optVegetative" selected>Vegetative Canopy Growth</option>
+                                <option value="flowering" id="optFlowering">Flowering & Pollination</option>
+                                <option value="fruiting" id="optFruiting">Fruiting / Grain Filling</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-2">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span id="lblHumidity" class="text-emerald-300/80"><i class="fa-solid fa-droplet text-blue-400 mr-1"></i> Relative Humidity</span>
+                                <span id="humidityVal" class="font-bold text-agri-300">78%</span>
+                            </div>
+                            <input type="range" id="humiditySlider" min="20" max="100" value="78" class="w-full accent-agri-500 bg-agri-950 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span id="lblTemperature" class="text-emerald-300/80"><i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> Ambient Temperature</span>
+                                <span id="tempVal" class="font-bold text-agri-300">28 °C</span>
+                            </div>
+                            <input type="range" id="tempSlider" min="10" max="45" value="28" class="w-full accent-agri-500 bg-agri-950 h-1.5 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+
+                    <button id="analyzeBtn" onclick="runAnalysis()" class="w-full mt-2 py-3 px-4 bg-gradient-to-r from-agri-600 to-agri-500 hover:from-agri-500 hover:to-agri-400 text-darkbg font-extrabold rounded-xl shadow-lg shadow-agri-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer text-sm tracking-wide">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span id="btnAnalyze">ANALYZE CROP HEALTH & RISK</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: Diagnostics & Agronomy Dashboard (7 cols) -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- Header Banner -->
+                <div id="diagnosticBanner" class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500 relative overflow-hidden">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span id="statusBadge" class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                                    Pathogen Detected
+                                </span>
+                                <span id="confidenceText" class="text-xs text-emerald-400/80">94.8% Match Confidence</span>
+                            </div>
+                            <h2 id="diseaseTitle" class="text-2xl font-extrabold text-white mt-1">Tomato Early Blight</h2>
+                            <p id="pathogenSubtitle" class="text-xs text-emerald-300/70 italic">Pathogen: Alternaria solani (Fungal Disease)</p>
+                        </div>
+
+                        <!-- Risk Meter Gauge -->
+                        <div class="flex items-center space-x-3 bg-agri-950/60 p-2.5 rounded-xl border border-agri-800/80 self-stretch sm:self-auto justify-between sm:justify-start">
+                            <div class="relative w-16 h-16 flex items-center justify-center">
+                                <svg class="w-16 h-16 transform -rotate-90">
+                                    <circle class="circle-bg" cx="32" cy="32" r="26"></circle>
+                                    <circle id="riskGaugeCircle" class="circle-progress" cx="32" cy="32" r="26" stroke-dasharray="163.3" stroke-dashoffset="35" stroke="#f59e0b"></circle>
+                                </svg>
+                                <span id="riskScoreVal" class="absolute text-sm font-black text-white">78%</span>
+                            </div>
+                            <div>
+                                <div id="lblRiskIndex" class="text-[10px] uppercase font-bold text-emerald-400/60">Risk Index</div>
+                                <div id="riskLevelText" class="text-xs font-bold text-amber-400">HIGH RISK</div>
+                                <div id="lblRiskSub" class="text-[10px] text-emerald-400/50">High Humidity Hazard</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Tab Navigation -->
+                <div class="glass-card rounded-2xl p-5 border border-agri-800/50">
+                    <div class="flex border-b border-agri-800/80 space-x-2 sm:space-x-6 overflow-x-auto text-xs font-semibold mb-4 pb-1">
+                        <button onclick="switchTab('diagnosis')" id="tab-diagnosis" class="tab-btn pb-2 text-agri-400 border-b-2 border-agri-400 flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-microscope"></i> <span id="tabDiagText">Diagnosis & Symptoms</span>
+                        </button>
+                        <button onclick="switchTab('proteins')" id="tab-proteins" class="tab-btn pb-2 text-emerald-400/60 hover:text-emerald-200 border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-dna"></i> <span id="tabProtText">Defense Proteins & Amino</span>
+                        </button>
+                        <button onclick="switchTab('fertilizer')" id="tab-fertilizer" class="tab-btn pb-2 text-emerald-400/60 hover:text-emerald-200 border-b-2 border-transparent flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-flask"></i> <span id="tabFertText">Stage Fertilizer Plan</span>
+                        </button>
+                    </div>
+
+                    <!-- TAB 1: DIAGNOSIS & SYMPTOMS -->
+                    <div id="content-diagnosis" class="tab-content space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-agri-950/60 p-3.5 rounded-xl border border-agri-900">
+                                <div id="lblVisualSymptoms" class="font-bold text-emerald-300 mb-1 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Visual Symptoms
+                                </div>
+                                <p id="symptomsText" class="text-emerald-100/80 leading-relaxed">
+                                    Concentric rings with target-like brown spots on foliage. Lower leaves show yellowing halo around necrotic lesions.
+                                </p>
+                            </div>
+                            <div class="bg-agri-950/60 p-3.5 rounded-xl border border-agri-900">
+                                <div id="lblMicroclimate" class="font-bold text-emerald-300 mb-1 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-cloud-rain text-blue-400"></i> Microclimate Vulnerability
+                                </div>
+                                <p id="microclimateText" class="text-emerald-100/80 leading-relaxed">
+                                    Elevated humidity accelerates fungal spore germination. Canopy airflow is restricted at this growth stage.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: DEFENSE PROTEINS -->
+                    <div id="content-proteins" class="tab-content space-y-4 hidden">
+                        <div class="bg-agri-950/60 p-4 rounded-xl border border-agri-900">
+                            <div class="flex items-center space-x-2 text-agri-300 text-xs font-bold mb-2">
+                                <i class="fa-solid fa-dna text-agri-400 text-sm"></i>
+                                <h3 id="lblProteinHeader">Bio-peptides & L-Amino Acid Recommendation</h3>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                <div class="p-3 bg-agri-900/40 rounded-lg border border-agri-800">
+                                    <div class="font-bold text-agri-300 flex items-center justify-between">
+                                        <span id="lblProt1Title">Proline & Glutamic Blend</span>
+                                        <span id="lblProt1Badge" class="text-[10px] bg-agri-800 text-agri-200 px-1.5 py-0.5 rounded">Osmoprotectant</span>
+                                    </div>
+                                    <p id="protein1Desc" class="text-emerald-100/70 mt-1">Strengthens cell wall rigidity and reduces cellular oxidative stress caused by fungal infection.</p>
+                                </div>
+                                <div class="p-3 bg-agri-900/40 rounded-lg border border-agri-800">
+                                    <div class="font-bold text-agri-300 flex items-center justify-between">
+                                        <span id="lblProt2Title">SAR Elicitor Peptides</span>
+                                        <span id="lblProt2Badge" class="text-[10px] bg-agri-800 text-agri-200 px-1.5 py-0.5 rounded">Immunostimulant</span>
+                                    </div>
+                                    <p id="protein2Desc" class="text-emerald-100/70 mt-1">Triggers endogenous phytoalexin protein synthesis to halt hyphal penetration in healthy leaves.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: FERTILIZER PLAN -->
+                    <div id="content-fertilizer" class="tab-content space-y-4 hidden">
+                        <div class="bg-agri-950/60 p-4 rounded-xl border border-agri-900">
+                            <div class="flex items-center justify-between mb-3">
+                                <span id="lblFertPrescription" class="text-xs font-bold text-white uppercase tracking-wider">NPK Stage Prescription</span>
+                                <span id="fertStageBadge" class="text-[10px] bg-agri-800 text-agri-300 px-2 py-0.5 rounded font-semibold">Vegetative Stage</span>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-2 text-center mb-4">
+                                <div class="p-2.5 bg-agri-900/60 rounded-lg border border-agri-800">
+                                    <div id="npkN" class="text-lg font-black text-agri-400">10</div>
+                                    <div id="lblNitrogen" class="text-[10px] text-emerald-400/60 uppercase">Nitrogen (N)</div>
+                                </div>
+                                <div class="p-2.5 bg-agri-900/60 rounded-lg border border-agri-800">
+                                    <div id="npkP" class="text-lg font-black text-blue-400">8</div>
+                                    <div id="lblPhosphorus" class="text-[10px] text-emerald-400/60 uppercase">Phosphorus (P)</div>
+                                </div>
+                                <div class="p-2.5 bg-agri-900/60 rounded-lg border border-agri-800">
+                                    <div id="npkK" class="text-lg font-black text-amber-400">22</div>
+                                    <div id="lblPotassium" class="text-[10px] text-emerald-400/60 uppercase">Potassium (K)</div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 text-xs">
+                                <div class="p-2.5 bg-agri-900/30 rounded border border-agri-800/80">
+                                    <span id="lblRecMix" class="font-bold text-agri-300">Recommended Mix: </span>
+                                    <span id="fertMixText" class="text-emerald-100">Potassium Nitrate (KNO₃) + Calcium Hydroxide Spray</span>
+                                </div>
+                                <div class="p-2.5 bg-agri-900/30 rounded border border-agri-800/80">
+                                    <span id="lblAgriReason" class="font-bold text-agri-300">Agronomic Reason: </span>
+                                    <span id="fertReasonText" class="text-emerald-100/80">Elevated Potassium decreases tissue susceptibility to enzymatic breakdown.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        let currentLang = 'en';
+
+        // Translation Dictionary
+        const i18n = {
+            en: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> Live Vision & Agronomy',
+                subTitle: 'Disease Diagnosis & Stage-Based Plant Nutrition Engine',
+                navCameraStatus: 'Camera Engine Active',
+                btnFileUpload: 'File Upload',
+                btnLiveCamera: 'Live Camera',
+                scanOverlayText: 'Analyzing Leaf Pathogens & Stomata...',
+                btnFlip: 'Flip',
+                btnCapture: 'Capture Snapshot',
+                activeSnapshot: 'Active Snapshot',
+                promptDrag: 'Drag & drop photo here or',
+                promptBrowse: 'browse',
+                promptSupport: 'Supports high resolution leaf or field spot photos',
+                lblPresets: 'Or test with preset crop samples:',
+                sampleTomatoTitle: 'Tomato Leaf',
+                sampleTomatoSub: 'Early Blight',
+                samplePotatoTitle: 'Potato Foliage',
+                samplePotatoSub: 'Late Blight',
+                sampleWheatTitle: 'Wheat Field',
+                sampleWheatSub: 'Yellow Rust',
+                sampleRiceTitle: 'Rice Canopy',
+                sampleRiceSub: 'Healthy',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> Field Conditions & Growth Phase',
+                lblCropCommodity: 'Crop Commodity',
+                lblGrowthStage: 'Growth Stage',
+                optSeedling: 'Seedling & Establishment',
+                optVegetative: 'Vegetative Canopy Growth',
+                optFlowering: 'Flowering & Pollination',
+                optFruiting: 'Fruiting / Grain Filling',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> Relative Humidity',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> Ambient Temperature',
+                btnAnalyze: 'ANALYZE CROP HEALTH & RISK',
+                statusDetected: 'Pathogen Detected',
+                statusHealthy: 'Healthy Crop',
+                matchConfidence: 'Match Confidence',
+                lblRiskIndex: 'Risk Index',
+                riskHigh: 'HIGH RISK',
+                riskMod: 'MODERATE',
+                riskLow: 'SAFE / LOW',
+                lblRiskSubHigh: 'High Humidity Hazard',
+                lblRiskSubMod: 'Monitor Field Conditions',
+                lblRiskSubLow: 'Optimal Growth Zone',
+                tabDiagText: 'Diagnosis & Symptoms',
+                tabProtText: 'Defense Proteins & Amino',
+                tabFertText: 'Stage Fertilizer Plan',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Visual Symptoms',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> Microclimate Vulnerability',
+                lblProteinHeader: 'Bio-peptides & L-Amino Acid Recommendation',
+                lblProt1Title: 'Proline & Glutamic Blend',
+                lblProt1Badge: 'Osmoprotectant',
+                lblProt2Title: 'SAR Elicitor Peptides',
+                lblProt2Badge: 'Immunostimulant',
+                lblFertPrescription: 'NPK Stage Prescription',
+                lblNitrogen: 'Nitrogen (N)',
+                lblPhosphorus: 'Phosphorus (P)',
+                lblPotassium: 'Potassium (K)',
+                lblRecMix: 'Recommended Mix: ',
+                lblAgriReason: 'Agronomic Reason: '
+            },
+            ta: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> நேரடி கேமரா மற்றும் வேளாண்மை',
+                subTitle: 'பயிர் நோய் கண்டறிதல் & ஊட்டச்சத்து பரிந்துரை பொறி',
+                navCameraStatus: 'கேமரா இயங்குகிறது',
+                btnFileUpload: 'கோப்பு பதிவேற்றம்',
+                btnLiveCamera: 'நேரடி கேமரா',
+                scanOverlayText: 'இலை நோய்க்கிருமிகள் பகுப்பாய்வு செய்யப்படுகின்றன...',
+                btnFlip: 'திருப்பு',
+                btnCapture: 'படம் எடு',
+                activeSnapshot: 'செயலில் உள்ள படம்',
+                promptDrag: 'படத்தை இங்கே இழுத்து போடவும் அல்லது',
+                promptBrowse: 'தேர்ந்தெடுக்கவும்',
+                promptSupport: 'உயர்ந்த தரமுடைய இலை புகைப்படங்களை ஏற்றலாம்',
+                lblPresets: 'அல்லது மாதிரி பயிர் படங்களை சோதிக்கவும்:',
+                sampleTomatoTitle: 'தக்காளி இலை',
+                sampleTomatoSub: 'முன்பருவ கருகல் நோய்',
+                samplePotatoTitle: 'உருளைக்கிழங்கு இலை',
+                samplePotatoSub: 'பின்பருவ கருகல் நோய்',
+                sampleWheatTitle: 'கோதுமை வயல்',
+                sampleWheatSub: 'மஞ்சள் துரு நோய்',
+                sampleRiceTitle: 'நெல் பயிர்',
+                sampleRiceSub: 'ஆரோக்கியமானது',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> வயல் நிலைமைகள் & வளர்ச்சி நிலை',
+                lblCropCommodity: 'பயிர் வகை',
+                lblGrowthStage: 'வளர்ச்சி நிலை',
+                optSeedling: 'நாற்று நிலை',
+                optVegetative: 'இலை வளர்ச்சி நிலை',
+                optFlowering: 'பூக்கும் நிலை',
+                optFruiting: 'காய்/மணி பிடிக்கும் நிலை',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> ஈரப்பதம்',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> வெப்பநிலை',
+                btnAnalyze: 'பயிர் ஆரோக்கியம் & அபாயத்தை பகுப்பாய்வு செய்',
+                statusDetected: 'நோய்க்கிருமி கண்டறியப்பட்டது',
+                statusHealthy: 'ஆரோக்கியமான பயிர்',
+                matchConfidence: 'துல்லிய அளவு',
+                lblRiskIndex: 'அபாய அளவு',
+                riskHigh: 'அதிக அபாயம்',
+                riskMod: 'மிதமான அபாயம்',
+                riskLow: 'பாதுகாப்பானது / குறைவு',
+                lblRiskSubHigh: 'அதிக ஈரப்பத ஆபத்து',
+                lblRiskSubMod: 'வயல் நிலையை கண்காணிக்கவும்',
+                lblRiskSubLow: 'சிறந்த வளர்ச்சி நிலை',
+                tabDiagText: 'நோய் அறிதல் & அறிகுறிகள்',
+                tabProtText: 'பாதுகாப்பு புரதங்கள் & அமினோ',
+                tabFertText: 'உரத் திட்டம்',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> வெளிப்புற அறிகுறிகள்',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> காலநிலை பாதிப்பு',
+                lblProteinHeader: 'உயிரி புரதங்கள் & எல்-அமினோ அமில பரிந்துரை',
+                lblProt1Title: 'புரோலைன் & குளுடாமிக் கலவை',
+                lblProt1Badge: 'செல்கள் பாதுகாப்பு',
+                lblProt2Title: 'SAR தூண்டுதல் புரதம்',
+                lblProt2Badge: 'நோய் எதிர்ப்பு காரணி',
+                lblFertPrescription: 'NPK உர பரிந்துரை',
+                lblNitrogen: 'நைட்ரஜன் (N)',
+                lblPhosphorus: 'பாஸ்பரஸ் (P)',
+                lblPotassium: 'பொட்டாசியம் (K)',
+                lblRecMix: 'பரிந்துரைக்கப்பட்ட கலவை: ',
+                lblAgriReason: 'வேளாண் காரணம்: '
+            },
+            te: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> లైవ్ విజన్ & అగ్రానమీ',
+                subTitle: 'పంట తెగుళ్ల గుర్తింపు & పోషకాల సలహా వ్యవస్థ',
+                navCameraStatus: 'కెమెరా ప్రారంభించబడింది',
+                btnFileUpload: 'ఫైల్ అప్‌లోడ్',
+                btnLiveCamera: 'లైవ్ కెమెరా',
+                scanOverlayText: 'ఆకు తెగుళ్లు విశ్లేషించబడుతున్నాయి...',
+                btnFlip: 'కెమెరా మార్చు',
+                btnCapture: 'ఫోటో తీయండి',
+                activeSnapshot: 'ప్రస్తుత ఫోటో',
+                promptDrag: 'ఫోటోను ఇక్కడ వేయండి లేదా',
+                promptBrowse: 'ఎంచుకోండి',
+                promptSupport: 'స్పష్టమైన ఆకుల ఫోటోలను అప్‌లోడ్ చేయవచ్చు',
+                lblPresets: 'లేదా నమూనా చిత్రాలతో పరీక్షించండి:',
+                sampleTomatoTitle: 'టమాటా ఆకు',
+                sampleTomatoSub: 'ఆకు మచ్చ తెగులు',
+                samplePotatoTitle: 'బంగాళాదుంప ఆకు',
+                samplePotatoSub: 'లేట్ బ్లైట్ తెగులు',
+                sampleWheatTitle: 'గోధుమ చేను',
+                sampleWheatSub: 'పసుపు కుంకుమ తెగులు',
+                sampleRiceTitle: 'వరి చేను',
+                sampleRiceSub: 'ఆరోగ్యకరమైనది',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> పొలం పరిస్థితులు & ఎదుగుదల దశ',
+                lblCropCommodity: 'పంట రకం',
+                lblGrowthStage: 'ఎదుగుదల దశ',
+                optSeedling: 'నారు దశ',
+                optVegetative: 'శాఖీయ ఎదుగుదల',
+                optFlowering: 'పూత దశ',
+                optFruiting: 'కాయ/గింజ దశ',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> గాలిలో తేమ',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> ఉష్ణోగ్రత',
+                btnAnalyze: 'పంట ఆరోగ్యం & ప్రమాదాన్ని విశ్లేషించండి',
+                statusDetected: 'తెగులు గుర్తించబడింది',
+                statusHealthy: 'ఆరోగ్యకరమైన పంట',
+                matchConfidence: 'ఖచ్చితత్వం',
+                lblRiskIndex: 'ప్రమాద సూచిక',
+                riskHigh: 'ఎక్కువ ప్రమాదం',
+                riskMod: 'మధ్యస్థ ప్రమాదం',
+                riskLow: 'సురక్షితం / తక్కువ',
+                lblRiskSubHigh: 'అధిక తేమ ముప్పు',
+                lblRiskSubMod: 'పొలం పరిస్థితిని గమనించండి',
+                lblRiskSubLow: 'అనుకూలమైన ఎదుగుదల',
+                tabDiagText: 'తెగుళ్ల గుర్తింపు & లక్షణాలు',
+                tabProtText: 'రక్షణ ప్రోటీన్లు & అమినో',
+                tabFertText: 'ఎరువుల ప్రణాళిక',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> కనిపిస్తున్న లక్షణాలు',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i>వాతావరణ ప్రభావం',
+                lblProteinHeader: 'బయో-పెప్టైడ్స్ & L-అమినో యాసిడ్ సలహా',
+                lblProt1Title: 'ప్రోలైన్ & గ్లుటామిక్ మిశ్రమం',
+                lblProt1Badge: 'కణ రక్షణ',
+                lblProt2Title: 'SAR ఇమ్యూనిటీ ప్రోటీన్లు',
+                lblProt2Badge: 'రోగనిరోధక శక్తి',
+                lblFertPrescription: 'NPK ఎరువు మోతాదు',
+                lblNitrogen: 'నత్రజని (N)',
+                lblPhosphorus: 'భాస్వరం (P)',
+                lblPotassium: 'పొటాషియం (K)',
+                lblRecMix: 'సిఫార్సు చేసిన మిశ్రమం: ',
+                lblAgriReason: 'వ్యవసాయ కారణం: '
+            },
+            hi: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> लाइव विज़न और कृषि सलाह',
+                subTitle: 'फसल रोग निदान एवं चरणबद्ध पोषण सलाहकार',
+                navCameraStatus: 'कैमरा सक्रिय है',
+                btnFileUpload: 'फ़ाइल अपलोड करें',
+                btnLiveCamera: 'लाइव कैमरा',
+                scanOverlayText: 'पत्तियों के रोगों का विश्लेषण हो रहा है...',
+                btnFlip: 'कैमरा बदलें',
+                btnCapture: 'फोटो खींचें',
+                activeSnapshot: 'सक्रिय फोटो',
+                promptDrag: 'फोटो यहाँ खींचकर लाएँ या',
+                promptBrowse: 'ब्राउज़ करें',
+                promptSupport: 'पत्तियों की स्पष्ट तस्वीरें अपलोड करें',
+                lblPresets: 'या सैंपल इमेज चुनकर परीक्षण करें:',
+                sampleTomatoTitle: 'टमाटर की पत्ती',
+                sampleTomatoSub: 'अगेती झुलसा रोग',
+                samplePotatoTitle: 'आलू की पत्ती',
+                samplePotatoSub: 'पछेती झुलसा रोग',
+                sampleWheatTitle: 'गेहूँ का खेत',
+                sampleWheatSub: 'पीला रतुआ रोग',
+                sampleRiceTitle: 'धान की फसल',
+                sampleRiceSub: 'स्वस्थ फसल',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> खेत की स्थिति एवं वृद्धि अवस्था',
+                lblCropCommodity: 'फसल का प्रकार',
+                lblGrowthStage: 'वृद्धि अवस्था',
+                optSeedling: 'अंकुरण अवस्था',
+                optVegetative: 'वानस्पतिक वृद्धि',
+                optFlowering: 'फूल आने की अवस्था',
+                optFruiting: 'फल / दाना बनने की अवस्था',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> हवा में नमी (आर्द्रता)',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> तापमान',
+                btnAnalyze: 'फसल स्वास्थ्य एवं जोखिम का विश्लेषण करें',
+                statusDetected: 'रोग का पता चला',
+                statusHealthy: 'स्वस्थ फसल',
+                matchConfidence: 'सटीकता दर',
+                lblRiskIndex: 'जोखिम सूचकांक',
+                riskHigh: 'उच्च जोखिम',
+                riskMod: 'मध्यम जोखिम',
+                riskLow: 'सुरक्षित / कम जोखिम',
+                lblRiskSubHigh: 'अधिक नमी के कारण खतरा',
+                lblRiskSubMod: 'खेत की निगरानी करें',
+                lblRiskSubLow: 'अनुकूल वृद्धि क्षेत्र',
+                tabDiagText: 'रोग निदान एवं लक्षण',
+                tabProtText: 'सुरक्षा प्रोटीन एवं एमीनो',
+                tabFertText: 'उर्वरक योजना',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> दृश्य लक्षण',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> मौसम प्रभाव',
+                lblProteinHeader: 'प्रोटीन एवं एल-एमीनो एसिड की सलाह',
+                lblProt1Title: 'प्रोलाइन एवं ग्लूटामिक मिश्रण',
+                lblProt1Badge: 'कोशिका सुरक्षा',
+                lblProt2Title: 'SAR प्रतिरक्षा प्रोटीन',
+                lblProt2Badge: 'रोग प्रतिरोधक',
+                lblFertPrescription: 'NPK खाद की मात्रा',
+                lblNitrogen: 'नाइट्रोजन (N)',
+                lblPhosphorus: 'फास्फोरस (P)',
+                lblPotassium: 'पोटेशियम (K)',
+                lblRecMix: 'अनुशंसित मिश्रण: ',
+                lblAgriReason: 'कृषि वैज्ञानिक कारण: '
+            },
+            mr: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> लाईव्ह व्हिजन आणि कृषी सल्ला',
+                subTitle: 'पिक रोग निदान आणि टप्प्यानुसार पोषण सल्लागार',
+                navCameraStatus: 'कॅमेरा सुरू आहे',
+                btnFileUpload: 'फाईल अपलोड करा',
+                btnLiveCamera: 'लाईव्ह कॅमेरा',
+                scanOverlayText: 'पानावरील रोगांचे विश्लेषण सुरू आहे...',
+                btnFlip: 'कॅमेरा बदला',
+                btnCapture: 'फोटो काढा',
+                activeSnapshot: 'सध्याचा फोटो',
+                promptDrag: 'फोटो येथे ड्रॅग करा किंवा',
+                promptBrowse: 'निवडा',
+                promptSupport: 'स्पष्ट पानावरील फोटो अपलोड करा',
+                lblPresets: 'किंवा नमुना फोटोंवर चाचणी करा:',
+                sampleTomatoTitle: 'टोमॅटोचे पान',
+                sampleTomatoSub: 'अगेती करपा रोग',
+                samplePotatoTitle: 'बटाट्याचे पान',
+                samplePotatoSub: 'पछेती करपा रोग',
+                sampleWheatTitle: 'गव्हाचे शेत',
+                sampleWheatSub: 'तांबेरा रोग',
+                sampleRiceTitle: 'भाताचे पीक',
+                sampleRiceSub: 'निरोगी पीक',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> शेतातील परिस्थिती आणि वाढीचा टप्पा',
+                lblCropCommodity: 'पिकाचा प्रकार',
+                lblGrowthStage: 'वाढीचा टप्पा',
+                optSeedling: 'रोप अवस्था',
+                optVegetative: 'शाकीय वाढ',
+                optFlowering: 'फुलोरा अवस्था',
+                optFruiting: 'फळ / दाणे भरण्याची अवस्था',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> हवेतील आर्द्रता',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> तापमान',
+                btnAnalyze: 'पिकाचे आरोग्य व धोक्याचे विश्लेषण करा',
+                statusDetected: 'रोग आढळला',
+                statusHealthy: 'निरोगी पीक',
+                matchConfidence: 'अचूकता दर',
+                lblRiskIndex: 'धोका निर्देशांक',
+                riskHigh: 'जास्त धोका',
+                riskMod: 'मध्यम धोका',
+                riskLow: 'सुरक्षित / कमी धोका',
+                lblRiskSubHigh: 'जास्त आर्द्रतेमुळे धोका',
+                lblRiskSubMod: 'शेताची पाहणी करा',
+                lblRiskSubLow: 'योग्य वाढीचे वातावरण',
+                tabDiagText: 'रोग निदान व लक्षणे',
+                tabProtText: 'संरक्षक प्रथिने व अमिनो',
+                tabFertText: 'खत व्यवस्थापन',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> दिसणारी लक्षणे',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> हवामान प्रभाव',
+                lblProteinHeader: 'बायो-पेप्टाईड्स व अमिनो ॲसिड सल्ला',
+                lblProt1Title: 'प्रोलाईन व ग्लुटामिक मिश्रण',
+                lblProt1Badge: 'पेशी संरक्षण',
+                lblProt2Title: 'SAR रोगप्रतिकारक प्रथिने',
+                lblProt2Badge: 'रोगप्रतिकारशक्ती',
+                lblFertPrescription: 'NPK खतांचे प्रमाण',
+                lblNitrogen: 'नायट्रोजन (N)',
+                lblPhosphorus: 'फॉस्फरस (P)',
+                lblPotassium: 'पोटॅशियम (K)',
+                lblRecMix: 'शिफारस केलेले मिश्रण: ',
+                lblAgriReason: 'कृषी शास्त्रीय कारण: '
+            },
+            ml: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> ലൈവ് ക്യാമറ & കൃഷി ഉപദേശം',
+                subTitle: 'വിള രോഗനിർണ്ണയവും പോഷക ഘടന നിർദ്ദേശക സംവിധാനവും',
+                navCameraStatus: 'ക്യാമറ പ്രവർത്തിക്കുന്നു',
+                btnFileUpload: 'ഫയൽ അപ്‌ലോഡ്',
+                btnLiveCamera: 'ലൈവ് ക്യാമറ',
+                scanOverlayText: 'ഇലകളിലെ രോഗങ്ങൾ പരിശോധിക്കുന്നു...',
+                btnFlip: 'ക്യാമറ മാറ്റുക',
+                btnCapture: 'ഫോട്ടോ എടുക്കുക',
+                activeSnapshot: 'ലഭ്യമായ ചിത്രം',
+                promptDrag: 'ചിത്രം ഇവിടെ ഇടുപ്പെടുക അല്ലെങ്കിൽ',
+                promptBrowse: 'തിരഞ്ഞെടുക്കുക',
+                promptSupport: 'വ്യക്തതയുള്ള ഇല ചിത്രങ്ങൾ നൽകാം',
+                lblPresets: 'അല്ലെങ്കിൽ സാമ്പിൾ ചിത്രങ്ങൾ പരിശോധിക്കുക:',
+                sampleTomatoTitle: 'തക്കാളി ഇല',
+                sampleTomatoSub: 'അഗേതി കരിച്ചിൽ രോഗം',
+                samplePotatoTitle: 'ഉരുളക്കിഴങ്ങ് ഇല',
+                samplePotatoSub: 'പച്ചേതി കരിച്ചിൽ രോഗം',
+                sampleWheatTitle: 'ഗോതമ്പ് പാടം',
+                sampleWheatSub: 'മഞ്ഞ തുരുമ്പ് രോഗം',
+                sampleRiceTitle: 'നെൽപ്പാടം',
+                sampleRiceSub: 'ആരോഗ്യമുള്ള വിള',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> പാടത്തിന്റെ അവസ്ഥയും വളർച്ച ഘട്ടവും',
+                lblCropCommodity: 'വിള തരം',
+                lblGrowthStage: 'വളർച്ചാ ഘട്ടം',
+                optSeedling: 'തൈ ഘട്ടം',
+                optVegetative: 'ഇല വളർച്ച ഘട്ടം',
+                optFlowering: 'പൂവിടൽ ഘട്ടം',
+                optFruiting: 'കായ്/മണി പിടിക്കുന്ന ഘട്ടം',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> അന്തരീക്ഷ ഈർപ്പം',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> താപനില',
+                btnAnalyze: 'വിള ആരോഗ്യവും അപായ സാധ്യതയും പരിശോധിക്കുക',
+                statusDetected: 'രോഗബാധ കണ്ടെത്തി',
+                statusHealthy: 'ആരോഗ്യമുള്ള വിള',
+                matchConfidence: 'കൃത്യത നിരക്ക്',
+                lblRiskIndex: 'അപായ സൂചിക',
+                riskHigh: 'ഉയർന്ന അപായം',
+                riskMod: 'മിതമായ അപായം',
+                riskLow: 'സുരക്ഷിതം / കുറവ്',
+                lblRiskSubHigh: 'കൂടിയ ഈർപ്പം മൂലമുള്ള അപകടം',
+                lblRiskSubMod: 'പാടം നിരീക്ഷിക്കുക',
+                lblRiskSubLow: 'അനുയോജ്യമായ വളർച്ചാ അന്തരീക്ഷം',
+                tabDiagText: 'രോഗനിർണ്ണയവും ലക്ഷണങ്ങളും',
+                tabProtText: 'പ്രതിരോധ പ്രോട്ടീനുകൾ & അമിനോ',
+                tabFertText: 'വളപ്രയോഗ പ്ലാൻ',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> ലക്ഷണങ്ങൾ',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> കാലാവസ്ഥാ സ്വാധീനം',
+                lblProteinHeader: 'ബയോ പ്രോട്ടീനുകളും എൽ-അമിനോ ആസിഡുകളും',
+                lblProt1Title: 'പ്രോലൈൻ & ഗ്ലൂറ്റാമിക് മിശ്രിതം',
+                lblProt1Badge: 'കോശ സംരക്ഷണം',
+                lblProt2Title: 'SAR പ്രതിരോധ പ്രോട്ടീനുകൾ',
+                lblProt2Badge: 'പ്രതിരോധശേഷി',
+                lblFertPrescription: 'NPK വളം അളവ്',
+                lblNitrogen: 'നൈട്രജൻ (N)',
+                lblPhosphorus: 'ഫോസ്ഫറസ് (P)',
+                lblPotassium: 'പൊട്ടാസ്യം (K)',
+                lblRecMix: 'നിർദ്ദേശിച്ച മിശ്രിതം: ',
+                lblAgriReason: 'കാർഷിക കാരണം: '
+            },
+            kn: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> ಲೈವ್ ದೃಷ್ಟಿ ಮತ್ತು ಕೃಷಿ ಸಲಹೆ',
+                subTitle: 'ಬೆಳೆ ರೋಗ ಪತ್ತೆ ಮತ್ತು ಹಂತವಾರು ಪೋಷಕಾಂಶ ಸಲಹೆಗಾರ',
+                navCameraStatus: 'ಕ್ಯಾಮೆರಾ ಸಕ್ರಿಯವಾಗಿದೆ',
+                btnFileUpload: 'ಫೈಲ್ ಅಪ್‌ಲೋಡ್',
+                btnLiveCamera: 'ಲೈವ್ ಕ್ಯಾಮೆರಾ',
+                scanOverlayText: 'ಎಲೆ ರೋಗಗಳನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ...',
+                btnFlip: 'ಕ್ಯಾಮೆರಾ બદಲಿಸಿ',
+                btnCapture: 'ಫೋಟೋ ತೆಗೆಯಿರಿ',
+                activeSnapshot: 'ಸಕ್ರಿಯ ಫೋಟೋ',
+                promptDrag: 'ಚಿತ್ರವನ್ನು ಇಲ್ಲಿ ಹಾಕಿ ಅಥವಾ',
+                promptBrowse: 'ಆಯ್ಕೆಮಾಡಿ',
+                promptSupport: 'ಸ್ಪಷ್ಟವಾದ ಎಲೆಯ ಫೋಟೋಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ',
+                lblPresets: 'ಅಥವಾ ಮಾದರಿ ಚಿತ್ರಗಳನ್ನು ಪರೀಕ್ಷಿಸಿ:',
+                sampleTomatoTitle: 'ಟೊಮ್ಯಾಟೋ ಎಲೆ',
+                sampleTomatoSub: 'ಆರಂಭಿಕ ಕರಗು ರೋಗ',
+                samplePotatoTitle: 'ಆಲೂಗಡ್ಡೆ ಎಲೆ',
+                samplePotatoSub: 'ತಡವಾದ ಕರಗು ರೋಗ',
+                sampleWheatTitle: 'ಗೋಧಿ ಹೊಲ',
+                sampleWheatSub: 'ಹಳದಿ ತುಕ್ಕು ರೋಗ',
+                sampleRiceTitle: 'ಭತ್ತದ ಬೆಳೆ',
+                sampleRiceSub: 'ಆರೋಗ್ಯಕರ ಬೆಳೆ',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> ಹೊಲದ ಪರಿಸ್ಥಿತಿಗಳು ಮತ್ತು ಬೆಳವಣಿಗೆಯ ಹಂತ',
+                lblCropCommodity: 'ಬೆಳೆಯ ವಿಧ',
+                lblGrowthStage: 'ಬೆಳವಣಿಗೆಯ ಹಂತ',
+                optSeedling: 'ಸಸಿ ಹಂತ',
+                optVegetative: 'ಎಲೆಗಳ ಬೆಳವಣಿಗೆ ಹಂತ',
+                optFlowering: 'ಹೂ ಬಿಡುವ ಹಂತ',
+                optFruiting: 'ಕಾಯಿ / ಧಾನ್ಯ ಕಟ್ಟುವ ಹಂತ',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> ಗಾಳಿಯಲ್ಲಿನ ತೇವಾಂಶ',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> ತಾಪಮಾನ',
+                btnAnalyze: 'ಬೆಳೆ ಆರೋಗ್ಯ ಮತ್ತು ಅಪಾಯ ವಿಶ್ಲೇಷಿಸಿ',
+                statusDetected: 'ರೋಗ ಪತ್ತೆಯಾಗಿದೆ',
+                statusHealthy: 'ಆರೋಗ್ಯಕರ ಬೆಳೆ',
+                matchConfidence: 'ನಿಖರತೆ ಪ್ರಮಾಣ',
+                lblRiskIndex: 'ಅಪಾಯದ ಸೂಚ್ಯಂಕ',
+                riskHigh: 'ಹೆಚ್ಚಿನ ಅಪಾಯ',
+                riskMod: 'ಮಧ್ಯಮ ಅಪಾಯ',
+                riskLow: 'ಸುರಕ್ಷಿತ / ಕಡಿಮೆ',
+                lblRiskSubHigh: 'ಹೆಚ್ಚಿನ ತೇವಾಂಶದಿಂದ ಅಪಾಯ',
+                lblRiskSubMod: 'ಹೊಲದ ಪರಿಸ್ಥಿತಿಯನ್ನು ಗಮನಿಸಿ',
+                lblRiskSubLow: 'ಉತ್ತಮ ಬೆಳವಣಿಗೆಯ ವಾತಾವರಣ',
+                tabDiagText: 'ರೋಗ ಪತ್ತೆ ಮತ್ತು ಲಕ್ಷಣಗಳು',
+                tabProtText: 'ರಕ್ಷಣಾ ಪ್ರೋಟೀನ್ಗಳು & ಅಮೈನೋ',
+                tabFertText: 'ಗೊಬ್ಬರದ ಯೋಜನೆ',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> ಕಾಣಿಸುವ ಲಕ್ಷಣಗಳು',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> ವಾತಾವರಣದ ಪ್ರಭಾವ',
+                lblProteinHeader: 'ಬಯೋ-ಪೆಪ್ಟೈಡ್ಸ್ & ಎಲ್-ಅಮೈನೋ ಆಮ್ಲ ಸಲಹೆ',
+                lblProt1Title: 'ಪ್ರೋಲಿನ್ & ಗ್ಲುಟಾಮಿಕ್ ಮಿಶ್ರಣ',
+                lblProt1Badge: 'ಕೋಶ ರಕ್ಷಣೆ',
+                lblProt2Title: 'SAR ರೋಗನಿರೋಧಕ ಪ್ರೋಟೀನ್ಗಳು',
+                lblProt2Badge: 'ರೋಗನಿರೋಧಕ ಶಕ್ತಿ',
+                lblFertPrescription: 'NPK ಗೊಬ್ಬರದ ಪ್ರಮಾಣ',
+                lblNitrogen: 'ಸಾರಜನಕ (N)',
+                lblPhosphorus: 'ರಂಜಕ (P)',
+                lblPotassium: 'ಪೊಟ್ಯಾಶಿಯಂ (K)',
+                lblRecMix: 'ಶಿಫಾರಸು ಮಾಡಿದ ಮಿಶ್ರಣ: ',
+                lblAgriReason: 'ಕೃಷಿ ಶಾಸ್ತ್ರದ ಕಾರಣ: '
+            },
+            or: {
+                badgeVision: '<i class="fa-solid fa-camera-retro mr-1"></i> ଲାଇଭ୍ କ୍ୟାମେରା ଓ କୃଷି ପରାମର୍ଶ',
+                subTitle: 'ଫସଲ ରୋଗ ନିରୂପଣ ଓ ପୋଷକ ତତ୍ତ୍ଵ ସୁପାରିଶ ପ୍ରଣାଳୀ',
+                navCameraStatus: 'କ୍ୟାମେରା ସକ୍ରିୟ ଅଛି',
+                btnFileUpload: 'ଫାଇଲ୍ ଅପଲୋଡ୍ କରନ୍ତୁ',
+                btnLiveCamera: 'ଲାଇଭ୍ କ୍ୟାମେରା',
+                scanOverlayText: 'ପତ୍ରର ରୋଗ ବିଶ୍ଳେଷଣ କରାଯାଉଛି...',
+                btnFlip: 'କ୍ୟାମେରା ବଦଳାନ୍ତୁ',
+                btnCapture: 'ଫୋଟୋ ଉଠାନ୍ତୁ',
+                activeSnapshot: 'ବର୍ତ୍ତମାନର ଫୋଟୋ',
+                promptDrag: 'ଫୋଟୋ ଏଠାରେ ଛାଡନ୍ତୁ କିମ୍ବା',
+                promptBrowse: 'ବାଛନ୍ତୁ',
+                promptSupport: 'ସ୍ପଷ୍ଟ ପତ୍ରର ଫୋଟୋ ଅପଲୋଡ୍ କରନ୍ତୁ',
+                lblPresets: 'କିମ୍ବା ନମୁନା ଫୋଟୋ ପରୀକ୍ଷା କରନ୍ତୁ:',
+                sampleTomatoTitle: 'ବିଲାତି ପତ୍ର',
+                sampleTomatoSub: 'ଅଗ୍ରାଗାମୀ ପୋଡା ରୋଗ',
+                samplePotatoTitle: 'ଆଳୁ ପତ୍ର',
+                samplePotatoSub: 'ପଶ୍ଚାଦ୍‌ଗାମୀ ପୋଡା ରୋଗ',
+                sampleWheatTitle: 'ଗହମ କ୍ଷେତ',
+                sampleWheatSub: 'ହଳଦିଆ କଳଙ୍କି ରୋଗ',
+                sampleRiceTitle: 'ଧାନ ଫସଲ',
+                sampleRiceSub: 'ସୁସ୍ଥ ଫସଲ',
+                lblFieldHeader: '<i class="fa-solid fa-sliders text-agri-400"></i> କ୍ଷେତର ପରିସ୍ଥିତି ଓ ବୃଦ୍ଧି ଅବସ୍ଥା',
+                lblCropCommodity: 'ଫସଲ ପ୍ରକାର',
+                lblGrowthStage: 'ବୃଦ୍ଧି ଅବସ୍ଥା',
+                optSeedling: 'ଚାରା ଅବସ୍ଥା',
+                optVegetative: 'ପତ୍ର ବୃଦ୍ଧି ଅବସ୍ଥା',
+                optFlowering: 'ଫୁଲ ଆସିବା ଅବସ୍ଥା',
+                optFruiting: 'ଫଳ / ଦାନା ହେବା ଅବସ୍ଥା',
+                lblHumidity: '<i class="fa-solid fa-droplet text-blue-400 mr-1"></i> ଆପେକ୍ଷିକ ଆର୍ଦ୍ରତା',
+                lblTemperature: '<i class="fa-solid fa-temperature-half text-amber-400 mr-1"></i> ତାପମାତ୍ରା',
+                btnAnalyze: 'ଫସଲ ସ୍ୱାସ୍ଥ୍ୟ ଓ ବିପଦ ବିଶ୍ଳେଷଣ କରନ୍ତୁ',
+                statusDetected: 'ରୋଗ ଚିହ୍ନଟ ହୋଇଛି',
+                statusHealthy: 'ସୁସ୍ଥ ଫସଲ',
+                matchConfidence: 'ସଠିକତା ହାର',
+                lblRiskIndex: 'ବିପଦ ସୂଚକାଙ୍କ',
+                riskHigh: 'ଅଧିକ ବିପଦ',
+                riskMod: 'ମଧ୍ୟମ ବିପଦ',
+                riskLow: 'ସୁରକ୍ଷିତ / କମ୍',
+                lblRiskSubHigh: 'ଅଧିକ ଆର୍ଦ୍ରତା ଯୋଗୁଁ ବିପଦ',
+                lblRiskSubMod: 'ଜମିର ସ୍ଥିତି ନିରୀକ୍ଷଣ କରନ୍ତୁ',
+                lblRiskSubLow: 'ଉତ୍ତମ ବୃଦ୍ଧି ପରିବେଶ',
+                tabDiagText: 'ରୋଗ ନିରୂପଣ ଓ ଲକ୍ଷଣ',
+                tabProtText: 'ସୁରକ୍ଷା ପ୍ରୋଟିନ୍ ଓ ଆମିନୋ',
+                tabFertText: 'ଖତ ପରିଚାଳନା',
+                lblVisualSymptoms: '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> ଦୃଶ୍ୟମାନ ଲକ୍ଷଣ',
+                lblMicroclimate: '<i class="fa-solid fa-cloud-rain text-blue-400"></i> ଜଳବାୟୁ ପ୍ରଭାବ',
+                lblProteinHeader: 'ବାୟୋ-ପେପ୍ଟାଇଡ୍ସ ଓ ଏଲ-ଆମିନୋ ଆସିଡ୍ ପରାମର୍ଶ',
+                lblProt1Title: 'ପ୍ରୋଲାଇନ୍ ଓ ଗ୍ଲୁଟାମିକ୍ ମିଶ୍ରଣ',
+                lblProt1Badge: 'କୋଷ ସୁରକ୍ଷା',
+                lblProt2Title: 'SAR ପ୍ରତିରୋଧୀ ପ୍ରୋଟିନ୍',
+                lblProt2Badge: 'ରୋଗ ପ୍ରତିରୋଧକ ସାମର୍ଥ୍ୟ',
+                lblFertPrescription: 'NPK ଖତ ପରିମାଣ',
+                lblNitrogen: 'ନାଇଟ୍ରୋଜେନ୍ (N)',
+                lblPhosphorus: 'ଫସଫରସ୍ (P)',
+                lblPotassium: 'ପୋଟାସିୟମ୍ (K)',
+                lblRecMix: 'ସୁପାରିଶ କରାଯାଇଥିବା ମିଶ୍ରଣ: ',
+                lblAgriReason: 'କୃଷି ବୈଜ୍ଞାନିକ କାରଣ: '
+            }
+        };
+
+        // Multi-lingual Dynamic Database for Diagnosis & Recommendations
+        const translatedDatabase = {
+            en: sampleDatabase,
+            ta: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'தக்காளி முன்பருவ கருகல் நோய்', pathogen: 'நோய்க்கிருமி: ஆல்டர்னேரியா சொலானி (பூஞ்சை)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'இலைகளில் வட்ட வடிவ பழுப்பு நிற புள்ளிகள் மற்றும் மஞ்சள் நிற வளையங்கள் காணப்படும்.',
+                    microclimate: 'அதிக காற்று ஈரப்பதம் பூஞ்சை வித்திகள் விரைவாக பரவ காரணமாகிறது.',
+                    protein1: 'எல்-புரோலைன் மற்றும் கிளைசின் அமினோ அமிலங்கள்: செல்லுலார் சவ்வுகளை பலப்படுத்துகிறது.',
+                    protein2: 'கைட்டோசான் நோயெதிர்ப்பு புரதங்கள்: தாவரத்தின் இயற்கையான நோய் எதிர்ப்பு திறனை தூண்டுகிறது.',
+                    npk: [10, 8, 22], fertMix: 'பொட்டாசியம் நைட்ரேட் (KNO₃) + கால்சியம் ஹைட்ராக்சைடு தெளிப்பு',
+                    fertReason: 'அதிக பொட்டாசியம் சத்து திசுக்கள் பூஞ்சையால் சேதமடைவதை தடுக்கிறது.',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'உருளைக்கிழங்கு பின்பருவ கருகல் நோய்', pathogen: 'நோய்க்கிருமி: பைட்டோப்தோரா இன்ஃபெஸ்டான்ஸ்',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'இலை விளிம்புகளில் நீரில் நனைந்தது போன்ற கருமையான புள்ளிகள் மற்றும் வெள்ளை நிற பூஞ்சை காளான்.',
+                    microclimate: 'அதிக ஈரப்பதம் நோய் கிருமி பரவலை மிக விரைவுபடுத்துகிறது.',
+                    protein1: 'குளுடாமிக் அமிலம் & அர்ஜினைன்: திசுக்களை சீரமைக்க உதவுகிறது.',
+                    protein2: 'SAR தூண்டுதல் புரதங்கள்: தாவரத்தின் எதிர்ப்பு நொதிகளை அதிகரிக்கிறது.',
+                    npk: [5, 12, 28], fertMix: 'மோனோபொட்டாசியம் பாஸ்பேட் (MKP) + மெக்னீசியம் சல்பேட்',
+                    fertReason: 'குறைந்த தழைச்சத்து இலைகள் மென்மையாவதை தடுக்கிறது; அதிக சாம்பல் சத்து கிழங்கை பாதுகாக்கிறது.',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'கோதுமை மஞ்சள் துரு நோய்', pathogen: 'நோய்க்கிருமி: பக்சீனியா 스트ரியிஃபார்மிஸ்',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'இலை நரம்புகளில் மஞ்சள்-ஆரஞ்சு நிற கோடுகள் மற்றும் புள்ளிகள் தோன்றுகின்றன.',
+                    microclimate: 'குளிர்ந்த ஈரமான காலை நேர காலநிலை இந்நோய் பரவ சாதகமானது.',
+                    protein1: 'லைசின் & மெத்தியோனைன் கலவை: அமினோ அமில குறைபாட்டை பூர்த்தி செய்கிறது.',
+                    protein2: 'மன அழுத்த எதிர்ப்பு பெப்டைடுகள்: மகசூல் இழப்பை குறைக்கிறது.',
+                    npk: [14, 10, 18], fertMix: 'யூரியா அம்மோனியம் நைட்ரேட் + துத்தநாகம் (Zinc)',
+                    fertReason: 'துத்தநாகம் பூக்கும் பருவத்தில் நொதிகளின் செயல்பாட்டை அதிகரிக்கிறது.',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'ஆரோக்கியமான நெல் பயிர்', pathogen: 'நோய்க்கிருமி எதுவும் கண்டறியப்படவில்லை',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'பயிர் நல்ல பச்சை நிறத்துடன் ஆரோக்கியமான வளர்ச்சி அடைந்துள்ளது.',
+                    microclimate: 'சீரான வெப்பநிலை மற்றும் ஈரப்பதம் இலை துளைகளின் செயல்பாட்டை மேம்படுத்துகிறது.',
+                    protein1: 'கடல்பாசி சாறு அமினோ கலவை: வேர் வளர்ச்சியை தூண்டுகிறது.',
+                    protein2: 'பொது உயிரி தூண்டி: ஒளிச்சேர்க்கை திறனை அதிகரிக்கிறது.',
+                    npk: [20, 10, 10], fertMix: 'சீரான NPK + சிலிக்கான் உரம்',
+                    fertReason: 'சிலிக்கான் சத்து இலைகளை நிமிரச்செய்து இயற்கை தடுப்பு சுவரை உருவாக்குகிறது.',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            te: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'টమాటా ఆకు మచ్చ తెగులు (అర్లీ బ్లైట్)', pathogen: 'కారకం: ఆల్టర్నేరియా సొలాని (శిలీంధ్రం)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'ఆకులపై గుండ్రటి నల్లటి మచ్చలు మరియు పసుపు రంగు వలయాలు కనిపిస్తాయి.',
+                    microclimate: 'అధిక గాలి తేమ వల్ల శిలీంధ్ర బీజాలు వేగంగా వ్యాపిస్తాయి.',
+                    protein1: 'L-ప్రోలైన్ & గ్లుటామిక్ అమినో ఆమ్లాలు: కణ త్వచాలను బలాపేతం చేస్తాయి.',
+                    protein2: 'కైటోసాన్ ఇమ్యూనిటీ ప్రోటీన్లు: సహజ రోగనిరోధక శక్తిని పెంచుతాయి.',
+                    npk: [10, 8, 22], fertMix: 'పొటాషియం నైట్రేట్ (KNO₃) + కాల్షియం స్ప్రే',
+                    fertReason: 'అధిక పొటాషియం కణజాలం తెగులుకు గురికాకుండా కాపాడుతుంది.',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'బంగాళాదుంప లేట్ బ్లైట్ తెగులు', pathogen: 'కారకం: ఫైటోప్తోరా ఇన్ఫెస్టాన్స్',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'ఆకుల చివర్లలో తడి మచ్చలు మరియు తెల్లటి బూజు కప్పబడి ఉంటుంది.',
+                    microclimate: 'అధిక తేమ వల్ల ఈ తెగులు చాలా వేగంగా వ్యాపిస్తుంది.',
+                    protein1: 'గ్లుటామిక్ యాసిడ్ & అర్జినిన్: దెబ్బతిన్న కణజాలాన్ని పునరుద్ధరిస్తాయి.',
+                    protein2: 'SAR ప్రోటీన్లు: మొక్కలో నిరోధక ఎంజైమ్‌లను ప్రేరేపిస్తాయి.',
+                    npk: [5, 12, 28], fertMix: 'మోనోపొటాషియం ఫాస్ఫేట్ (MKP) + మెగ్నీషియం సల్ఫేట్',
+                    fertReason: 'తక్కువ నత్రజని ఆకులు మెత్తబడకుండా చేస్తుంది; అధిక పొటాషియం దుంప నాణ్యతను పెంచుతుంది.',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'గోధుమ పసుపు కుంకుమ తెగులు', pathogen: 'కారకం: పక్సినియా స్ట్రైఫార్మిస్',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'ఆకుల ఈనెలెంబడే పసుపు-నారింజ రంగు చారలు మచ్చలుగా ఏర్పడతాయి.',
+                    microclimate: 'చల్లని తేమతో కూడిన వాతావరణం ఈ తెగులుకి అనుకూలం.',
+                    protein1: 'లైసిన్ & మెథియోనిన్ కాంప్లెక్స్: అమినో యాసిడ్ లోపాన్ని భర్తీ చేస్తుంది.',
+                    protein2: 'యాంటీ-స్ట్రెస్ పెప్టైడ్స్: దిగుబడి నష్టాన్ని తగ్గిస్తుంది.',
+                    npk: [14, 10, 18], fertMix: 'యురియా అమ్మోనియం నైట్రేట్ + జింక్',
+                    fertReason: 'జింక్ పూత దశలో ఎంజైమ్‌ల పనితీరును మెరుగుపరుస్తుంది.',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'ఆరోగ్యకరమైన వరి పైరు', pathogen: 'ఎటువంటి తెగులు గుర్తించబడలేదు',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'ఆకులు సస్యశ్యామలంగా ఆరోగ్యకరమైన ఎదుగుదలతో ఉన్నాయి.',
+                    microclimate: 'అనుకూల ఉష్ణోగ్రత మరియు తేమ కిరణజన్య సంయోగక్రియకు తోడ్పడతాయి.',
+                    protein1: 'సముద్రపు పాచి అమినో మిశ్రమం: వేరు వ్యవస్థను బలపరుస్తుంది.',
+                    protein2: 'బయో స్టిమ్యులెంట్ పెప్టైడ్స్: పిండిపదార్థాల తయారీని వేగవంతం చేస్తుంది.',
+                    npk: [20, 10, 10], fertMix: 'సమతుల్య NPK + ಸಿಲಿಕಾನ್ ఎరువు',
+                    fertReason: 'సిలికాన్ ఆకులను నిటారుగా ఉంచి రక్షణ కవచంలా పనిచేస్తుంది.',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            hi: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'टमाटर का अगेती झुलसा रोग (Early Blight)', pathogen: 'रोगजनक: अल्टरनेरिया सोलेनाई (फफूंद)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'पत्तियों पर संकेंद्री छल्लों जैसे भूरे धब्बे दिखाई देते हैं।',
+                    microclimate: 'उच्च आर्द्रता फफूंद के बीजाणुओं को तेजी से फैलाने में मदद करती है।',
+                    protein1: 'एल-प्रोलाइन और ग्लूटामिक मिश्रण: कोशिका झिल्ली को मजबूत करता है।',
+                    protein2: 'काइटोसन प्रतिरक्षा प्रोटीन: प्राकृतिक रक्षा प्रणाली को सक्रिय करता है।',
+                    npk: [10, 8, 22], fertMix: 'पोटेशियम नाइट्रेट (KNO₃) + कैल्शियम स्प्रे',
+                    fertReason: 'अधिक पोटेशियम पत्तियों को फफूंद के प्रभाव से बचाता है।',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'आलू का पछेती झुलसा रोग (Late Blight)', pathogen: 'रोगजनक: फाइटोफ्थोरा इन्फेस्टान्स',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'पत्तियों के किनारों पर काले धब्बे और सफेद फफूंद दिखाई देती है।',
+                    microclimate: 'अत्यधिक नमी के कारण यह रोग बहुत तेजी से फैलता है।',
+                    protein1: 'ग्लूटामिक एसिड और अर्जिनिन: क्षतिग्रस्त ऊतकों की मरम्मत करता है।',
+                    protein2: 'SAR प्रोटीन: पौधों में सुरक्षात्मक एंजाइम बढ़ाता है।',
+                    npk: [5, 12, 28], fertMix: 'मोनोपोटेशियम फॉस्फेट (MKP) + मैग्नीशियम सल्फेट',
+                    fertReason: 'कम नाइट्रोजन पत्तियों को कोमल होने से रोकता है; उच्च पोटेशियम कंदों को सुरक्षा प्रदान करता है।',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'गेहूँ का पीला रतुआ रोग (Yellow Rust)', pathogen: 'रोगजनक: पक्सिनिया स्ट्राइफॉर्मिस',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'पत्तियों की शिराओं पर पीले-नारंगी रंग की धारियाँ दिखाई देती हैं।',
+                    microclimate: 'ठंडा और नम मौसम इस फफूंद के विकास के लिए अनुकूल है।',
+                    protein1: 'लाइसीन एवं मेथियोनीन: एमिनो एसिड की कमी को पूरा करता है।',
+                    protein2: 'एंटी-स्ट्रेस पेप्टाइड्स: पैदावार के नुकसान को कम करता है।',
+                    npk: [14, 10, 18], fertMix: 'यूरिया अमोनियम नाइट्रेट + जिंक स्प्रे',
+                    fertReason: 'जिंक पुष्पन अवस्था में एंजाइमों की कार्यक्षमता बढ़ाता है।',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'स्वस्थ धान की फसल', pathogen: 'कोई रोगजनक नहीं पाया गया',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'फसल हरी-भरी और पूर्णतः स्वस्थ अवस्था में है।',
+                    microclimate: 'अनुकूल तापमान और नमी प्रकाश संश्लेषण को बढ़ावा देते हैं।',
+                    protein1: 'समुद्री शैवाल एमीनो मिश्रण: जड़ों के विकास को तेज करता है।',
+                    protein2: 'बायो-स्टिमुलेंट पेप्टाइड्स: भोजन बनाने की क्षमता बढ़ाता है।',
+                    npk: [20, 10, 10], fertMix: 'संतुलित NPK + सिलिकॉन उर्वरक',
+                    fertReason: 'सिलिकॉन पत्तियों को मजबूत बनाकर प्राकृतिक सुरक्षा प्रदान करता है।',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            mr: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'टोमॅटोचा अगेती करपा रोग', pathogen: 'रोगकारक: अल्टरनेरिया सोलेनाय (बुरशी)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'पानांवर वर्तुळाकार तपकिरी ठिपके आणि पिवळे वलय दिसतात.',
+                    microclimate: 'हवेतील जास्त आर्द्रता बुरशीचे बीजाणू पसरवण्यास कारणीभूत ठरते.',
+                    protein1: 'एल-प्रोलाईन व ग्लुटामिक अमिनो ॲसिड: पेशींच्या भिंती मजबूत करते.',
+                    protein2: 'कायटोसान प्रतिकारशक्ती प्रथिने: नैसर्गिक प्रतिकारशक्ती वाढवते.',
+                    npk: [10, 8, 22], fertMix: 'पोटॅशियम नायट्रेट (KNO₃) + कॅल्शियम फवारणी',
+                    fertReason: 'जास्त पोटॅशियम पानांना बुरशीच्या संसर्गापासून वाचवते.',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'बटाट्याचा पछेती करपा रोग', pathogen: 'रोगकारक: फायटोफ्थोरा इन्फेस्टान्स',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'पानांच्या कडांवर काळे डाग आणि पांढरी बुरशी दिसते.',
+                    microclimate: 'अति आर्द्रतेमुळे हा रोग खूप वेगाने पसरतो.',
+                    protein1: 'ग्लुटामिक ॲसिड व अर्जिनिन: पेशींची पुनर्निर्मिती वेगाने करते.',
+                    protein2: 'SAR प्रथिने: वनस्पतीमध्ये संरक्षक विकरे तयार करते.',
+                    npk: [5, 12, 28], fertMix: 'मोनोपोटॅशियम फॉस्फेट (MKP) + मॅग्नेशियम सल्फेट',
+                    fertReason: 'कमी नत्र पानांना मऊ होण्यापासून रोखते; जास्त पोटॅश बटाट्याची गुणवत्ता वाढवते.',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'गव्हावरील तांबेरा (पिवळा तांबेरा)', pathogen: 'रोगकारक: पक्सिनिया स्ट्रायफॉर्मिस',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'पानांच्या शिरांवर पिवळ्या-नारिंगी रंगाच्या पट्ट्या दिसतात.',
+                    microclimate: 'थंड व दमट हवामान या रोगाच्या वाढीस पोषक ठरते.',
+                    protein1: 'लायसीन व मेथिओनाईन: अमिनो ॲसिडची कमतरता भरून काढते.',
+                    protein2: 'अँटी-स्ट्रेस पेप्टाईड्स: उत्पादनातील घट रोखते.',
+                    npk: [14, 10, 18], fertMix: 'युरिया अमोनियम नायट्रेट + झिंक फवारणी',
+                    fertReason: 'झिंक फुलोरा अवस्थेत विकरांची कार्यक्षमता वाढवते.',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'निरोगी भात पीक', pathogen: 'कोणताही रोग आढळला नाही',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'पीक हिरवेगार व उत्तम वाढीच्या स्थितीत आहे.',
+                    microclimate: 'योग्य तापमान व आर्द्रता प्रकाशसंश्लेषण क्रियेस मदत करते.',
+                    protein1: 'समुद्री शेवाळ अमिनो मिश्रण: मुळांची वाढ वेगाने करते.',
+                    protein2: 'बायो-स्टिम्युलेटर पेप्टाईड्स: अन्ननिर्मिती क्षमता वाढवते.',
+                    npk: [20, 10, 10], fertMix: 'संतुलित NPK + सिलिकॉन खत',
+                    fertReason: 'सिलिकॉन पानांना ताठ ठेवून नैसर्गि क ढाल म्हणून काम करते.',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            ml: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'തക്കാളി അഗേതി കരിച്ചിൽ രോഗം', pathogen: 'രോഗകാരി: ആൾട്ടർനേറിയ സൊലാനി (ഫംഗസ്)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'ഇലകളിൽ തവിട്ടുനിറത്തിലുള്ള പാടുകളും മഞ്ഞ വളയങ്ങളും കാണപ്പെടുന്നു.',
+                    microclimate: 'കൂടിയ അന്തരീക്ഷ ഈർപ്പം ഫംഗസ് വിത്തുകൾ വേഗത്തിൽ പടരാൻ കാരണമാകുന്നു.',
+                    protein1: 'എൽ-പ്രോലൈൻ & ഗ്ലൂറ്റാമിക് അമിനോ ആസിഡുകൾ: കോശ ഭിത്തികളെ ശക്തിപ്പെടുത്തുന്നു.',
+                    protein2: 'കൈറ്റോസാൻ പ്രോട്ടീനുകൾ: സസ്യത്തിന്റെ സ്വാഭാവിക രോഗപ്രതിരോധശേഷി ഉണർത്തുന്നു.',
+                    npk: [10, 8, 22], fertMix: 'പൊട്ടാസ്യം നൈട്രേറ്റ് (KNO₃) + കാൽസ്യം സ്‌പ്രേ',
+                    fertReason: 'കൂടിയ പൊട്ടാസ്യം ഇലകളെ ഫംഗസ് ബാധയിൽ നിന്ന് സംരക്ഷിക്കുന്നു.',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'ഉരുളക്കിഴങ്ങ് പച്ചേതി കരിച്ചിൽ രോഗം', pathogen: 'രോഗകാരി: ഫൈറ്റോപ്തോറ ഇൻഫെസ്റ്റൻസ്',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'ഇലകളുടെ അരികുകളിൽ കറുത്ത പാടുകളും വെളുത്ത ഫംഗസ് വളർച്ചയും കാണാം.',
+                    microclimate: 'കൂടിയ ഈർപ്പം ഈ രോഗം വളരെ വേഗത്തിൽ പടരാൻ ഇടയാക്കുന്നു.',
+                    protein1: 'ഗ്ലൂറ്റാമിക് ആസിഡ് & ആർജിനൈൻ: കോശങ്ങളെ വേഗത്തിൽ പുനഃസ്ഥാപിക്കുന്നു.',
+                    protein2: 'SAR പ്രോട്ടീനുകൾ: ചെടിയിൽ പ്രതിരോധ എൻസൈമുകൾ വർദ്ധിപ്പിക്കുന്നു.',
+                    npk: [5, 12, 28], fertMix: 'മോണോപൊട്ടാസ്യം ഫോസ്ഫേറ്റ് (MKP) + മഗ്നീഷ്യം സൾഫേറ്റ്',
+                    fertReason: 'കുറഞ്ഞ നൈട്രജൻ ഇലകൾ മൃദുവാകുന്നത് തടയുന്നു; കൂടിയ പൊട്ടാസ്യം കിഴങ്ങിന്റെ ഗുണമേന്മ കൂട്ടുന്നു.',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'ഗോതമ്പ് മഞ്ഞ തുരുമ്പ് രോഗം', pathogen: 'രോഗകാരി: പക്സിനിയ സ്ട്രൈഫോർമിസ്',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'ഇല ഞരമ്പുകൾക്ക് സമാന്തരമായി മഞ്ഞ-ഓറഞ്ച് വരകൾ കാണപ്പെടുന്നു.',
+                    microclimate: 'തണുപ്പുള്ള ഈർപ്പമുള്ള അന്തരീക്ഷം ഈ രോഗത്തിന് അനുകൂലമാണ്.',
+                    protein1: 'ലൈസിൻ & മെഥിയോനൈൻ: അമിനോ ആസിഡ് കുറവ് പരിഹരിക്കുന്നു.',
+                    protein2: 'ആന്റി-സ്ട്രെസ് പെപ്റ്റൈഡുകൾ: വിളവ് കുറയുന്നത് തടയുന്നു.',
+                    npk: [14, 10, 18], fertMix: 'യൂറിയ അമോണിയം നൈട്രേറ്റ് + സിങ്ക് സ്‌പ്രേ',
+                    fertReason: 'സിങ്ക് പൂവിടൽ ഘട്ടത്തിൽ എൻസൈമുകളുടെ പ്രവർത്തനം കൂട്ടുന്നു.',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'ആരോഗ്യമുള്ള നെൽച്ചെടി', pathogen: 'രോഗകാരികളൊന്നും കണ്ടെത്തിയില്ല',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'വിള നല്ല പച്ചപ്പടെ പൂർണ്ണ ആരോഗ്യത്തോടെ വളരുന്നു.',
+                    microclimate: 'അനുയോജ്യമായ ചൂടും ഈർപ്പവും പ്രകാശസംശ്ലേഷണത്തിന് സഹായിക്കുന്നു.',
+                    protein1: 'കടൽ പായൽ അമിനോ മിശ്രിതം: വേരുകളുടെ വളർച്ച ത്വരിതപ്പെടുത്തുന്നു.',
+                    protein2: 'ബയോ സ്റ്റിമുലന്റ് പെപ്റ്റൈഡുകൾ: ഭക്ഷണം ഉണ്ടാക്കാനുള്ള ശേഷി കൂട്ടുന്നു.',
+                    npk: [20, 10, 10], fertMix: 'സന്തുലിത NPK + സിലിക്കൺ വളം',
+                    fertReason: 'സിലിക്കൺ ഇലകളെ നിവർന്നുനിൽക്കാൻ സഹായിച്ച് സ്വാഭാവിക കവചമാകുന്നു.',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            kn: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'ಟೊಮ್ಯಾಟೋ ಆರಂಭಿಕ ಕರಗು ರೋಗ', pathogen: 'ರೋಗಕಾರಕ: ಆಲ್ಟರ್ನೇರಿಯಾ ಸೊಲಾನಿ (ಶಿಲೀಂಧ್ರ)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'ಎಲೆಗಳ ಮೇಲೆ ದುಂಡಗಿನ ಕಂದು ಬಣ್ಣದ ಚುಕ್ಕೆಗಳು ಮತ್ತು ಹಳದಿ ವಲಯಗಳು ಕಾಣಿಸುತ್ತವೆ.',
+                    microclimate: 'ಹೆಚ್ಚಿನ ಗಾಳಿಯ ತೇವಾಂಶವು ಶಿಲೀಂಧ್ರ ಹರಡುವಿಕೆಯನ್ನು ವೇಗಗೊಳಿಸುತ್ತದೆ.',
+                    protein1: 'L-ಪ್ರೋಲಿನ್ & ಗ್ಲುಟಾಮಿಕ್ ಆಮ್ಲಗಳು: ಜೀವಕೋಶದ ಪದರವನ್ನು ಬಲಪಡಿಸುತ್ತವೆ.',
+                    protein2: 'ಕೈಟೋಸಾನ್ ರೋಗನಿರೋಧಕ ಪ್ರೋಟೀನ್‌ಗಳು: ನೈಸರ್ಗಿಕ ರಕ್ಷಣಾ ವ್ಯವಸ್ಥೆಯನ್ನು ಉತ್ತೇಜಿಸುತ್ತವೆ.',
+                    npk: [10, 8, 22], fertMix: 'ಪೊಟ್ಯಾಶಿಯಂ ನೈಟ್ರೇಟ್ (KNO₃) + ಕ್ಯಾಲ್ಸಿಯಂ ಸ್ಪೇ',
+                    fertReason: 'ಹೆಚ್ಚಿನ ಪೊಟ್ಯಾಶಿಯಂ ಎಲೆಗಳು ಶಿಲೀಂಧ್ರಕ್ಕೆ ತುತ್ತಾಗುವುದನ್ನು ತಡೆಯುತ್ತದೆ.',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'ಆಲೂಗಡ್ಡೆ ತಡವಾದ ಕರಗು ರೋಗ', pathogen: 'ರೋಗಕಾರಕ: ಫೈಟೋಪ್ಥೋರಾ ಇನ್ಫೆಸ್ಟಾನ್ಸ್',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'ಎಲೆಗಳ ಅಂಚುಗಳಲ್ಲಿ ನೀರು ನೆನೆದಂತಹ ಕಪ್ಪು ಚುಕ್ಕೆಗಳು ಮತ್ತು ಬಿಳಿ ಶಿಲೀಂಧ್ರ ಕಾಣಿಸುತ್ತದೆ.',
+                    microclimate: 'ಹೆಚ್ಚಿನ ತೇವಾಂಶವು ಈ ರೋಗವು ವೇಗವಾಗಿ ಹರಡಲು ಕಾರಣವಾಗುತ್ತದೆ.',
+                    protein1: 'ಗ್ಲುಟಾಮಿಕ್ ಆಮ್ಲ & ಅರ್ಜಿನೈನ್: ಹಾನಿಗೊಳಗಾದ ಜೀವಕೋಶಗಳನ್ನು ಸರಿಪಡಿಸುತ್ತವೆ.',
+                    protein2: 'SAR ಪ್ರೋಟೀನ್‌ಗಳು: ಸಸ್ಯದಲ್ಲಿ ರಕ್ಷಣಾತ್ಮಕ ಕಿಣ್ವಗಳನ್ನು ಹೆಚ್ಚಿಸುತ್ತವೆ.',
+                    npk: [5, 12, 28], fertMix: 'ಮೊನೊಪೊಟ್ಯಾಶಿಯಂ ಫಾಸ್ಫೇಟ್ (MKP) + ಮೆಗ್ನೀಸಿಯಂ ಸಲ್ಫೇಟ್',
+                    fertReason: 'ಕಡಿಮೆ ಸಾರಜನಕವು ಎಲೆಗಳು ಮೃದುವಾಗುವುದನ್ನು ತಡೆಯುತ್ತದೆ; ಹೆಚ್ಚಿನ ಪೊಟ್ಯಾಶಿಯಂ ಗೆಡ್ಡೆಯ ಗುಣಮಟ್ಟ ಹೆಚ್ಚಿಸುತ್ತದೆ.',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'ಗೋಧಿ ಹಳದಿ ತುಕ್ಕು ರೋಗ', pathogen: 'ರೋಗಕಾರಕ: ಪಕ್ಸಿನಿಯಾ ಸ್ಟ್ರೈಫಾರ್ಮಿಸ್',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'ಎಲೆಗಳ ಸಿರೆಗಳ ಉದ್ದಕ್ಕೂ ಹಳದಿ-ಕಿತ್ತಳೆ ಬಣ್ಣದ ಪಟ್ಟೆಗಳು ಕಾಣಿಸಿಕೊಳ್ಳುತ್ತವೆ.',
+                    microclimate: 'ತಂಪಾದ ಮತ್ತು ತೇವಾಂಶವುಳ್ಳ ವಾತಾವರಣವು ರೋಗಕ್ಕೆ ಅನುಕೂಲಕರವಾಗಿದೆ.',
+                    protein1: 'ಲೈಸಿನ್ & ಮೆಥಿಯೋನಿನ್: ಅಮೈನೋ ಆಮ್ಲದ ಕೊರತೆಯನ್ನು ನೀಗಿಸುತ್ತದೆ.',
+                    protein2: 'ಆಂಟಿ-ಸ್ಟ್ರೆಸ್ ಪೆಪ್ಟೈಡ್ಸ್: ಇಳುವರಿ ನಷ್ಟವನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತದೆ.',
+                    npk: [14, 10, 18], fertMix: 'ಯೂರಿಯಾ ಅಮೋನಿಯಂ ನೈಟ್ರೇಟ್ + ಜಿಂಕ್ ಸ್ಪೇ',
+                    fertReason: 'ಜಿಂಕ್ ಹೂ ಬಿಡುವ ಹಂತದಲ್ಲಿ ಕಿಣ್ವಗಳ ಕಾರ್ಯಕ್ಷಮತೆಯನ್ನು ಹೆಚ್ಚಿಸುತ್ತದೆ.',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'ಆರೋಗ್ಯಕರ ಭತ್ತದ ಬೆಳೆ', pathogen: 'ಯಾವುದೇ ರೋಗಕಾರಕ ಕಂಡುಬಂದಿಲ್ಲ',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'ಬೆಳೆಯು ಹಸಿರಿನಿಂದ ಕೂಡಿದ್ದು ಸಂಪೂರ್ಣ ಆರೋಗ್ಯಕರವಾಗಿದೆ.',
+                    microclimate: 'ಸೂಕ್ತ ತಾಪಮಾನ ಮತ್ತು ತೇವಾಂಶವು ದ್ಯುತಿಸಂಶ್ಲೇಷಣೆಗೆ ನೆರವಾಗುತ್ತದೆ.',
+                    protein1: 'ಸಮುದ್ರ ಕಳೆ ಅಮೈನೋ ಮಿಶ್ರಣ: ಬೇರುಗಳ ಬೆಳವಣಿಗೆಯನ್ನು ವೇಗಗೊಳಿಸುತ್ತದೆ.',
+                    protein2: 'ಬಯೋ-ಸ್ಟಿಮ್ಯುಲಂಟ್ ಪೆಪ್ಟೈಡ್ಸ್: ಆಹಾರ ತಯಾರಿಕೆಯ ಸಾಮರ್ಥ್ಯವನ್ನು ಹೆಚ್ಚಿಸುತ್ತದೆ.',
+                    npk: [20, 10, 10], fertMix: 'ಸಮತೋಲಿತ NPK + ಸಿಲಿಕಾನ್ ಗೊಬ್ಬರ',
+                    fertReason: 'ಸಿಲಿಕಾನ್ ಎಲೆಗಳನ್ನು ನೇರವಾಗಿರಿಸಿ ನೈಸರ್ಗಿಕ ರಕ್ಷಣಾ ಕವಚವಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ.',
+                    image: sampleDatabase.rice.image
+                }
+            },
+            or: {
+                tomato: {
+                    crop: 'tomato', stage: 'vegetative',
+                    disease: 'ବିଲାତି ଅଗ୍ରାଗାମୀ ପୋଡା ରୋଗ', pathogen: 'ରୋଗକାରକ: ଅଲଟରନାରିଆ ସୋଲାନି (ଫଙ୍ଗସ୍)',
+                    confidence: '95.4%', riskScore: 78, humidity: 82, temp: 26,
+                    symptoms: 'ପତ୍ରରେ ଗୋଲାକାର ବାଦାମୀ ଦାଗ ଓ ହଳଦିଆ ବଳୟ ଦେଖାଯାଏ ।',
+                    microclimate: 'ଅଧିକ ଆର୍ଦ୍ରତା ଫଙ୍ଗସ୍ ବଂଶବୃଦ୍ଧିକୁ ଦ୍ରୁତତର କରିଥାଏ ।',
+                    protein1: 'ଏଲ-ପ୍ରୋଲାଇନ୍ ଓ ଗ୍ଲୁଟାମିକ୍ ଆମିନୋ ଆସିଡ୍: କୋଷ ପରଦାକୁ ମଜବୁତ୍ କରେ ।',
+                    protein2: 'କାଇଟୋସାନ୍ ପ୍ରତିରୋଧୀ ପ୍ରୋଟିନ୍: ପ୍ରାକୃତିକ ରୋଗ ପ୍ରତିରୋଧକ ଶକ୍ତି ବଢାଏ ।',
+                    npk: [10, 8, 22], fertMix: 'ପୋଟାସିୟମ୍ ନାଇଟ୍ରେଟ୍ (KNO₃) + କ୍ୟାଲସିୟମ୍ ସ୍ପ୍ରେ',
+                    fertReason: 'ଅଧିକ ପୋଟାସିୟମ୍ ପତ୍ରକୁ ଫଙ୍ଗସ୍ ଆක්‍ରମଣରୁ ରକ୍ଷା କରେ ।',
+                    image: sampleDatabase.tomato.image
+                },
+                potato: {
+                    crop: 'potato', stage: 'fruiting',
+                    disease: 'ଆଳୁ ପଶ୍ଚାଦ୍‌ଗାମୀ ପୋଡା ରୋଗ', pathogen: 'ରୋଗକାରକ: ଫାଇଟୋପଥୋରା ଇନଫେଷ୍ଟାନ୍ସ',
+                    confidence: '98.1%', riskScore: 92, humidity: 90, temp: 22,
+                    symptoms: 'ପତ୍ର କଡରେ କଳା ଦାଗ ଓ ଧଳା ରଙ୍ଗର ଫଙ୍ଗସ୍ ଦେଖାଯାଏ ।',
+                    microclimate: 'ଅଧିକ ଆର୍ଦ୍ରତା ଯୋଗୁଁ ଏହି ରୋଗ କ୍ଷିପ୍ର ଗତିରେ ବ୍ୟାପିଥାଏ ।',
+                    protein1: 'ଗ୍ଲୁଟାମିକ୍ ଆସିଡ୍ ଓ ଆର୍ଜିନାଇନ୍: କ୍ଷତିଗ୍ରସ୍ତ କୋଷଗୁଡ଼ିକୁ ମରାମତି କରେ ।',
+                    protein2: 'SAR ପ୍ରୋଟିନ୍: ଗଛରେ ପ୍ରତିରୋଧୀ ଏଞ୍ଜାଇମ୍ ବୃଦ୍ଧି କରେ ।',
+                    npk: [5, 12, 28], fertMix: 'ମୋନୋପୋଟାସିୟମ୍ ଫସଫେଟ୍ (MKP) + ମ୍ୟାଗ୍ନେସିୟମ୍ ସଲଫେଟ୍',
+                    fertReason: 'କମ୍ ଯବକ୍ଷାରଜାନ ପତ୍ରକୁ ନରମ ହେବାରୁ ରୋକେ; ଅଧିକ ପୋଟାସିୟମ୍ ଆଳୁ ଗୁଣବତ୍ତା ବଢାଏ ।',
+                    image: sampleDatabase.potato.image
+                },
+                wheat: {
+                    crop: 'wheat', stage: 'flowering',
+                    disease: 'ଗହମ ହଳଦିଆ କଳଙ୍କି ରୋଗ', pathogen: 'ରୋଗକାରକ: ପକ୍ସିନିଆ ଷ୍ଟ୍ରାଇଫର୍ମିସ୍',
+                    confidence: '92.7%', riskScore: 64, humidity: 70, temp: 18,
+                    symptoms: 'ପତ୍ର ସିରା ସାମ୍ନାରେ ହଳଦିଆ-କମଳା ରଙ୍ଗର ଗାର ଦେଖାଯାଏ ।',
+                    microclimate: 'ଥଣ୍ଡା ଓ ଓଦା ପରିବେଶ ଏହି ରୋଗ ପାଇଁ ଅନୁକୂଳ ।',
+                    protein1: 'ଲାଇସିନ୍ ଓ ମେଥିଓନାଇନ୍: ଆମିନୋ ଆସିଡ୍ ଅଭାବ ପୂରଣ କରେ ।',
+                    protein2: 'ଆଣ୍ଟି-ଷ୍ଟ୍ରେସ୍ ପେପ୍ଟାଇଡ୍ସ: ଅମଳ ହ୍ରାସକୁ ରୋକିଥାଏ ।',
+                    npk: [14, 10, 18], fertMix: 'ୟୁରିଆ ଆମୋନିୟମ୍ ନାଇଟ୍ରେଟ୍ + ଜିଙ୍କ୍ ସ୍ପ୍ରେ',
+                    fertReason: 'ଜିଙ୍କ୍ ଫୁଲ ଆସିବା ସମୟରେ ଏଞ୍ଜାଇମ୍‌ର କାର୍ଯ୍ୟଦକ୍ଷତା ବଢାଏ ।',
+                    image: sampleDatabase.wheat.image
+                },
+                rice: {
+                    crop: 'rice', stage: 'vegetative',
+                    disease: 'ସୁସ୍ଥ ଧାନ ଫସଲ', pathogen: 'କୌଣସି ରୋଗ ଚିହ୍ନଟ ହୋଇନାହିଁ',
+                    confidence: '99.0%', riskScore: 18, humidity: 60, temp: 29,
+                    symptoms: 'ଫସଲ ସବୁଜ ଓ ସମ୍ପୂର୍ଣ୍ଣ ସୁସ୍ଥ ଅବସ୍ଥାରେ ଅଛି ।',
+                    microclimate: 'ଅନୁକୂଳ ତାପମାତ୍ରା ଓ ଆର୍ଦ୍ରତା ସାଲୋକସଂଶ୍ଲେଷଣକୁ ପ୍ରୋତ୍ସାହିତ କରେ ।',
+                    protein1: 'ସାମୁଦ୍ରିକ ଶୈବାଳ ଆମିନୋ ମିଶ୍ରଣ: ଚେର ବୃଦ୍ଧିକୁ ତ୍ୱରାନ୍ୱିତ କରେ ।',
+                    protein2: 'ବାୟୋ-ଷ୍ଟିମୁଲାଣ୍ଟ ପେପ୍ଟାଇଡ୍ସ: ଖାଦ୍ୟ ପ୍ରସ୍ତୁତି କ୍ଷମତା ବଢାଏ ।',
+                    npk: [20, 10, 10], fertMix: 'ସନ୍ତୁଳିତ NPK + ସିଲିକନ୍ ଖତ',
+                    fertReason: 'ସିଲିକନ୍ ପତ୍ରକୁ ସିଧା ରଖି ପ୍ରାକୃତିକ ସୁରକ୍ଷା କବଚ ଭାବେ କାର୍ଯ୍ୟ କରେ ।',
+                    image: sampleDatabase.rice.image
+                }
+            }
+        };
+
+        // Switch App Language Dynamically
+        function changeLanguage(langKey) {
+            currentLang = langKey;
+            const dict = i18n[langKey] || i18n.en;
+
+            // Translate static elements
+            Object.keys(dict).forEach(key => {
+                const el = document.getElementById(key);
+                if (el) {
+                    if (key.startsWith('lbl') || key.startsWith('badge') || key.startsWith('opt')) {
+                        el.innerHTML = dict[key];
+                    } else {
+                        el.innerText = dict[key];
+                    }
+                }
+            });
+
+            // Re-render analysis with translated data
+            renderResults();
+        }
+
+        function calculateRisk(baseScore) {
+            const hum = parseInt(document.getElementById('humiditySlider').value);
+            const temp = parseInt(document.getElementById('tempSlider').value);
+
+            let multiplier = 1.0;
+            if (hum > 80) multiplier += 0.25;
+            if (temp >= 20 && temp <= 30) multiplier += 0.15;
+
+            let calculated = Math.min(Math.round(baseScore * multiplier), 99);
+            if (currentActiveData && currentActiveData.disease.includes('Healthy')) {
+                calculated = Math.min(Math.round(15 * (hum / 70)), 35);
+            }
+            return calculated;
+        }
+
+        function updateRiskCalculations() {
+            if (!currentActiveData) return;
+            const score = calculateRisk(currentActiveData.riskScore);
+            const dict = i18n[currentLang] || i18n.en;
+            
+            const circle = document.getElementById('riskGaugeCircle');
+            const circumference = 2 * Math.PI * 26;
+            circle.style.strokeDashoffset = circumference - (score / 100) * circumference;
+
+            document.getElementById('riskScoreVal').innerText = score + '%';
+
+            const riskLevelText = document.getElementById('riskLevelText');
+            const lblRiskSub = document.getElementById('lblRiskSub');
+
+            if (score > 75) {
+                riskLevelText.innerText = dict.riskHigh;
+                riskLevelText.className = 'text-xs font-bold text-red-400';
+                lblRiskSub.innerText = dict.lblRiskSubHigh;
+                circle.setAttribute('stroke', '#ef4444');
+            } else if (score > 45) {
+                riskLevelText.innerText = dict.riskMod;
+                riskLevelText.className = 'text-xs font-bold text-amber-400';
+                lblRiskSub.innerText = dict.lblRiskSubMod;
+                circle.setAttribute('stroke', '#f59e0b');
+            } else {
+                riskLevelText.innerText = dict.riskLow;
+                riskLevelText.className = 'text-xs font-bold text-emerald-400';
+                lblRiskSub.innerText = dict.lblRiskSubLow;
+                circle.setAttribute('stroke', '#22c55e');
+            }
+        }
+
+        function renderResults() {
+            const selectedCrop = document.getElementById('cropSelect').value;
+            const selectedStage = document.getElementById('stageSelect').value;
+            const dict = i18n[currentLang] || i18n.en;
+
+            // Fetch language database
+            const db = translatedDatabase[currentLang] || translatedDatabase.en;
+            let data = db[selectedCrop] || db['tomato'];
+            currentActiveData = data;
+
+            const isHealthy = data.disease.includes('Healthy') || data.disease.includes('ஆரோக்கியமான') || data.disease.includes('ఆరోగ్యకరమైన') || data.disease.includes('स्वस्थ') || data.disease.includes('निरोगी') || data.disease.includes('ആരോഗ്യമുള്ള') || data.disease.includes('ಆರೋಗ್ಯಕರ') || data.disease.includes('ସୁସ୍ଥ');
+
+            const statusBadge = document.getElementById('statusBadge');
+            if (isHealthy) {
+                statusBadge.innerText = dict.statusHealthy;
+                statusBadge.className = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded";
+            } else {
+                statusBadge.innerText = dict.statusDetected;
+                statusBadge.className = "bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded";
+            }
+
+            document.getElementById('diseaseTitle').innerText = data.disease;
+            document.getElementById('pathogenSubtitle').innerText = data.pathogen;
+            document.getElementById('confidenceText').innerText = data.confidence + ' ' + dict.matchConfidence;
+
+            document.getElementById('symptomsText').innerText = data.symptoms;
+            document.getElementById('microclimateText').innerText = data.microclimate;
+
+            document.getElementById('protein1Desc').innerText = data.protein1;
+            document.getElementById('protein2Desc').innerText = data.protein2;
+
+            const stageOption = document.getElementById('stageSelect').options[document.getElementById('stageSelect').selectedIndex].text;
+            document.getElementById('fertStageBadge').innerText = stageOption.toUpperCase();
+            
+            document.getElementById('npkN').innerText = data.npk[0];
+            document.getElementById('npkP').innerText = data.npk[1];
+            document.getElementById('npkK').innerText = data.npk[2];
+            document.getElementById('fertMixText').innerText = data.fertMix;
+            document.getElementById('fertReasonText').innerText = data.fertReason;
+
+            updateRiskCalculations();
+        }
+    </script>
+</body>
+</html>
